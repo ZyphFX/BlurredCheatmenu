@@ -8,11 +8,12 @@ This was my first attempt at combining ImGui with Windows’ blur effects — af
 
 ---
 
-## 🖼️ What It Looks Like
+## 📸 What It Looks Like (might change following updates)
 
-| Main Window UI Example |
-|------------------------|
-| ![Screenshot](preview.png) |
+### Main Window UI Example
+
+![Screenshot](preview.png)
+
 
 ---
 
