@@ -4,7 +4,7 @@ A simple proof-of-concept demonstrating how to create **blurred transparent back
 
 This was my first attempt at combining ImGui with Windows’ blur effects — after a few hours of experimentation, I finally got it working and wanted to share the source for anyone interested or struggling with the same.
 
-> ⚠️ *I'm new to C++/ImGui development, so don't expect perfect code! I'm just learning as I go.*
+> ⚠️ *I'm new to C++/ImGui development, so don't expect perfect code! I'm just trying to learn just like you.*
 
 ---
 
