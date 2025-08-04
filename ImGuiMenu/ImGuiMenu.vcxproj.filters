@@ -42,6 +42,9 @@
     <ClCompile Include="cheat\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cheat\styling.h">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cheat\gui.h">

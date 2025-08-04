@@ -135,6 +135,7 @@
   <ItemGroup>
     <ClCompile Include="cheat\gui.cpp" />
     <ClCompile Include="cheat\main.cpp" />
+    <ClCompile Include="cheat\styling.h" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />

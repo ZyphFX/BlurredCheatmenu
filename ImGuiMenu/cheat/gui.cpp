@@ -1,14 +1,25 @@
-﻿#include "gui.h"
+﻿// ZyphFx V1.1
+
+
+#include "gui.h"
 #include <algorithm>
 #include <dwmapi.h>
+#include "styling.h"
 
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_win32.h"
 #include "../imgui/imgui_impl_dx9.h"
 
+
 #pragma comment(lib, "dwmapi.lib")
 
-// ✅ Define these before using them
+const float dragBarHeight = 25.0f;
+
+
+
+
+
+// Define these before using them
 struct ACCENT_POLICY {
     int nAccentState;
     int nFlags;
@@ -112,27 +123,41 @@ long __stdcall WindowProcess(
 
 // _________________-- GUI Functions --________________
 
-void EnableBlurBehind(HWND hwnd)
+void EnableBlurBehind(HWND hwnd, int width, int height)
 {
-    // Windows 7 Aero Glass
-    DWM_BLURBEHIND bb = { 0 };
-    bb.dwFlags = DWM_BB_ENABLE;
+    // Create a rounded region for both blur and clipping
+    HRGN hRgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, 32, 32);
+
+    // Enable blur behind inside the rounded region
+    DWM_BLURBEHIND bb = {};
+    bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
     bb.fEnable = TRUE;
-    bb.hRgnBlur = NULL;
+    bb.hRgnBlur = hRgn;
     DwmEnableBlurBehindWindow(hwnd, &bb);
 
-    // Windows 10+ Acrylic Blur
+    // Clip the actual window to the rounded region
+    SetWindowRgn(hwnd, hRgn, TRUE);
+
+    // Optional: Windows 10+ blur without tint (remove black box effect)
     HMODULE hUser = LoadLibraryA("user32.dll");
     if (hUser)
     {
-        typedef HRESULT(WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
-        auto SetWindowCompositionAttribute =
-            (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
+        using pSetWindowCompositionAttribute = BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
+        auto SetWindowCompositionAttribute = reinterpret_cast<pSetWindowCompositionAttribute>(
+            GetProcAddress(hUser, "SetWindowCompositionAttribute"));
 
         if (SetWindowCompositionAttribute)
         {
-            ACCENT_POLICY policy = { ACCENT_ENABLE_BLURBEHIND, 0, 0, 0 };
-            WINDOWCOMPOSITIONATTRIBDATA data = { 19, &policy, sizeof(policy) };
+            ACCENT_POLICY policy = {};
+            policy.nAccentState = ACCENT_ENABLE_BLURBEHIND; // No tint acrylic blur
+            policy.nFlags = 0;
+            policy.nColor = 0x00000000; // ARGB: transparent tint (no black)
+
+            WINDOWCOMPOSITIONATTRIBDATA data = {};
+            data.Attrib = 19; // WCA_ACCENT_POLICY
+            data.pvData = &policy;
+            data.cbData = sizeof(policy);
+
             SetWindowCompositionAttribute(hwnd, &data);
         }
         FreeLibrary(hUser);
@@ -140,7 +165,16 @@ void EnableBlurBehind(HWND hwnd)
 }
 
 
+void ApplyWindowRounding(HWND hwnd, int radius = 16) {
+    RECT rect;
+    GetWindowRect(hwnd, &rect);
 
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+
+    HRGN region = CreateRoundRectRgn(0, 0, width, height, radius, radius);
+    SetWindowRgn(hwnd, region, TRUE);
+}
 
 void gui::CreateHWindow(
     const char* windowName,
@@ -161,6 +195,9 @@ void gui::CreateHWindow(
 
     RegisterClassExA(&windowClass);
 
+
+
+
     window = CreateWindowA(
         className,
         windowName,
@@ -175,12 +212,63 @@ void gui::CreateHWindow(
         0
     );
 
+
+
+
+    // Use WIDTH and HEIGHT (you already have those defined)
+    HRGN hrgn = CreateRoundRectRgn(0, 0, WIDTH + 1, HEIGHT + 1, 32, 32);
+
+
+    // Only works on Windows 11
+    enum DWM_WINDOW_CORNER_PREFERENCE {
+        DWMWCP_DEFAULT = 0,
+        DWMWCP_DONOTROUND = 1,
+        DWMWCP_ROUND = 2,
+        DWMWCP_ROUNDSMALL = 3
+    };
+
+    DWM_WINDOW_CORNER_PREFERENCE cornerPreference = DWMWCP_ROUND;
+    DwmSetWindowAttribute(
+        window,                         // your HWND
+        33,                             // DWMWA_WINDOW_CORNER_PREFERENCE = 33
+        &cornerPreference,
+        sizeof(cornerPreference)
+    );
+
+    BOOL disableShadow = TRUE;
+
+    // This disables the system drop shadow (which is the white/gray outline you're seeing)
+    DwmSetWindowAttribute(
+        window,
+        2, // DWMWA_NCRENDERING_POLICY
+        &disableShadow,
+        sizeof(disableShadow)
+    );
+
+    // This ensures DWM doesn't draw any border shadow either
+    DwmSetWindowAttribute(
+        window,
+        3, // DWMWA_NCRENDERING_ENABLED
+        &disableShadow,
+        sizeof(disableShadow)
+    );
+
+
+
+
+
     // ✅ This is required to enable blur on the window
-    EnableBlurBehind(window);
+    EnableBlurBehind(window, WIDTH, HEIGHT);
+    ApplyWindowRounding(gui::window, 32);
+
 
     ShowWindow(window, SW_SHOWDEFAULT);
     UpdateWindow(window);
 }
+
+
+
+
 
 
 void gui::DestroyHWindow() noexcept
@@ -253,8 +341,6 @@ void gui::CreateImGui() noexcept
 
     io.IniFilename = NULL;
 
-    ImGui::StyleColorsDark();
-
     ImGui_ImplWin32_Init(window);
     ImGui_ImplDX9_Init(device);
 }
@@ -282,6 +368,7 @@ void gui::BeginRender() noexcept
 }
 
 
+
 void gui::EndRender() noexcept
 {
     ImGui::EndFrame();
@@ -289,8 +376,6 @@ void gui::EndRender() noexcept
     device->SetRenderState(D3DRS_ZENABLE, FALSE);
     device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
     device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-
-    device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_RGBA(15, 15, 15, 255), 1.0f, 0);
 
     if (device->BeginScene() >= 0)
     {
@@ -308,13 +393,13 @@ void gui::EndRender() noexcept
 
 void gui::Render() noexcept
 {
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowPos(ImVec2(10, 10));
     ImGui::SetNextWindowSize(ImVec2(WIDTH, HEIGHT));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.0f));
-    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
 
-
+    // Transparent window + no border + no child bg + no table bg
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
 
     ImGui::Begin("Aimbot Config", &exit,
         ImGuiWindowFlags_NoTitleBar |
@@ -324,116 +409,56 @@ void gui::Render() noexcept
         ImGuiWindowFlags_NoScrollbar
     );
 
-    // === TOP STRIP DRAGGABLE ZONE ===
-    const float dragBarHeight = 20.0f;
-    ImVec2 dragZone = ImVec2(ImGui::GetWindowWidth(), dragBarHeight);
-    ImGui::SetCursorPos(ImVec2(0, 0));
-    ImGui::InvisibleButton("##drag_zone", dragZone, ImGuiButtonFlags_MouseButtonLeft);
-
-    static bool dragging = false;
-    static POINT dragStart = {};
-    static POINT windowStart = {};
-
-    if (ImGui::IsItemActive() && !dragging)
+    // --- Dragging Logic ---
     {
-        dragging = true;
-        GetCursorPos(&dragStart);
+        static bool dragging = false;
+        static POINT dragStart = {};
+        static POINT windowStart = {};
 
-        RECT rect;
-        GetWindowRect(gui::window, &rect);
-        windowStart.x = rect.left;
-        windowStart.y = rect.top;
-    }
-
-    if (dragging)
-    {
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
+            !ImGui::IsAnyItemHovered() &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
-            dragging = false;
+            dragging = true;
+            GetCursorPos(&dragStart);
+
+            RECT rect;
+            GetWindowRect(gui::window, &rect);
+            windowStart.x = rect.left;
+            windowStart.y = rect.top;
         }
-        else
+
+        if (dragging)
         {
-            POINT current;
-            GetCursorPos(&current);
+            if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                dragging = false;
+            }
+            else
+            {
+                POINT current;
+                GetCursorPos(&current);
 
-            int dx = current.x - dragStart.x;
-            int dy = current.y - dragStart.y;
+                int dx = current.x - dragStart.x;
+                int dy = current.y - dragStart.y;
 
-            SetWindowPos(gui::window, HWND_TOPMOST,
-                windowStart.x + dx,
-                windowStart.y + dy,
-                0, 0,
-                SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
+                SetWindowPos(gui::window, HWND_TOPMOST,
+                    windowStart.x + dx,
+                    windowStart.y + dy,
+                    0, 0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
+            }
         }
     }
 
-    ImGui::SetCursorPosY(dragBarHeight + 5); // Move below drag zone
 
-    ImGui::PopStyleColor(2);
-    ImGui::PopStyleVar();
-
-    ImGui::Columns(2, nullptr, false);  // Two-column layout
-
-    // --- Left Column ---
+    // -- Actual layout --
     {
-        ImGui::Text("Aimbot Settings");
-        static int aimbot_mode = 0;
-        const char* modes[] = { "Disable", "Enable", "Rage", "Legit" };
-        ImGui::Combo("Aimbot mode", &aimbot_mode, modes, IM_ARRAYSIZE(modes));
 
-        static bool auto_fire = false;
-        ImGui::Checkbox("Auto fire", &auto_fire);
-
-        static float fire_rating = 25.0f;
-        ImGui::SliderFloat("Fire rating", &fire_rating, 0.0f, 50.0f, "(%.1f / 50)");
-
-        static bool auto_resolver = false;
-        ImGui::Checkbox("Auto resolver", &auto_resolver);
-
-        static float fov = 100.0f;
-        ImGui::SliderFloat("Field of view", &fov, 0.0f, 180.0f, "(%.0f)");
-
-        static bool silent = false;
-        ImGui::Checkbox("Silent aim", &silent);
-
-        static bool perfect_silent = false;
-        ImGui::Checkbox("Perfect silent", &perfect_silent);
-
-        static bool auto_scope = false;
-        ImGui::Checkbox("Auto scope", &auto_scope);
     }
 
-    ImGui::NextColumn();
 
-    // --- Right Column ---
-    {
-        ImGui::Text("Body Aimbot Settings");
-        static int body_aimbot_mode = 0;
-        const char* body_modes[] = { "Disable", "Enable" };
-        ImGui::Combo("Auto body-aimbot", &body_aimbot_mode, body_modes, IM_ARRAYSIZE(body_modes));
+    ImGui::PopStyleColor(3); // 5 colors pushed above
 
-        static float body_before = 25.0f;
-        ImGui::SliderFloat("Body before (X HP)", &body_before, 0.0f, 50.0f, "(%.0f / 50)");
-
-        static float body_after = 25.0f;
-        ImGui::SliderFloat("Body after (X HP)", &body_after, 0.0f, 50.0f, "(%.0f / 50)");
-
-        static bool velocity_comp = false;
-        ImGui::Checkbox("Velocity compensation", &velocity_comp);
-
-        static float spinbot_speed = 100.0f;
-        ImGui::SliderFloat("Spinbot speed", &spinbot_speed, 0.0f, 100.0f);
-
-        static float lowerbody_delta = 100.0f;
-        ImGui::SliderFloat("Lowerbody delta", &lowerbody_delta, 0.0f, 100.0f);
-
-        static bool anti_aim_target = false;
-        ImGui::Checkbox("Anti aim at target", &anti_aim_target);
-    }
-
-    ImGui::Columns(1);
     ImGui::End();
 }
-
-
-
