@@ -16,12 +16,10 @@ int __stdcall wWinMain(
 
 	while (gui::exit)
 	{
-		gui::BeginRender();
-		gui::Render();
-		gui::EndRender();
-
+		gui::Render();  // ? Handles the whole frame
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
+
 
 	// destroy the gui
 	gui::DestroyImGui();

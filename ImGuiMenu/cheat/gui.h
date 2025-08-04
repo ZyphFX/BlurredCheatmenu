@@ -16,6 +16,7 @@ namespace gui
 	// points for window movement
 	inline POINTS position = { };
 
+		
 	//direct x state vars
 	inline PDIRECT3D9 d3d = nullptr;
 	inline LPDIRECT3DDEVICE9 device = nullptr;
