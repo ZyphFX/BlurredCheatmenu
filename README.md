@@ -1,4 +1,4 @@
-# 🌫️ ImGui Blur Background Demo (Windows)
+# ⚡ ImGui Blur Background Demo (Windows) ⚡
 
 A simple proof-of-concept demonstrating how to create **blurred transparent backgrounds** using **C++**, **ImGui**, and native **Windows APIs**.
 
