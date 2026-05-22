@@ -1,11 +1,12 @@
 #pragma once
+#include <windows.h>
 #include <d3d9.h>
 
 namespace gui
 {
 	// constant window size
-	constexpr int WIDTH = 900;
-	constexpr int HEIGHT = 500;
+	constexpr int WIDTH = 1120;
+	constexpr int HEIGHT = 700;
 
 	inline bool exit = true;
 

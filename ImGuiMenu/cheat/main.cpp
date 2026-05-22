@@ -1,5 +1,7 @@
 #include "gui.h"
 
+#include <chrono>
+#include <cstdlib>
 #include <thread>
 
 int __stdcall wWinMain(

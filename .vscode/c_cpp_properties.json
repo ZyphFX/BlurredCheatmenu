@@ -1,0 +1,23 @@
+{
+  "configurations": [
+    {
+      "name": "x64",
+      "intelliSenseMode": "windows-msvc-x64",
+      "compilerPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+      "cppStandard": "c++20",
+      "cStandard": "c17",
+      "includePath": [
+        "${workspaceFolder}\\ImGuiMenu",
+        "${workspaceFolder}\\ImGuiMenu\\imgui",
+        "${workspaceFolder}\\ImGuiMenu\\cheat"
+      ],
+      "defines": [
+        "_DEBUG",
+        "_CONSOLE",
+        "UNICODE",
+        "_UNICODE"
+      ]
+    }
+  ],
+  "version": 4
+}
